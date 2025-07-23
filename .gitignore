@@ -1,0 +1,59 @@
+# ────── Logs ───────────────────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ────── Runtime Data ──────────────────────
+pids/
+*.pid
+*.pid.lock
+
+# ────── Temporary Files & Sockets ─────────
+tmp/
+
+# ────── Build Output ──────────────────────
+dist/
+build/
+
+# ────── TypeScript Cache ──────────────────
+*.tsbuildinfo
+
+# ────── Environment Variables ─────────────
+.env
+.env.local
+.env.*.local
+
+# ────── Database Files ────────────────────
+*.sqlite
+*.sqlite3
+db/*.sqlite
+db/*.sqlite3
+
+# ────── Node Modules ──────────────────────
+node_modules/
+
+# ────── IDE Files ─────────────────────────
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# ────── OS-specific Files ─────────────────
+.DS_Store
+Thumbs.db
+
+# ────── Testing Coverage ──────────────────
+coverage/
+*.lcov
+
+# ────── Miscellaneous ─────────────────────
+*.tgz
+*.lock-wscript
+/.yarn-integrity
+/.pnp.*
+
+
