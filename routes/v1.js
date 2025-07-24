@@ -3,6 +3,9 @@ const router = express.Router();
 
 // Import route modules
 const userRouter = require("./user.route");
+const kycRouter = require("./kyc.route");
+const transactionRouter = require("./transaction.route");
+
 
 // Health Check Route
 router.get("/health", (req, res) => {
@@ -10,6 +13,8 @@ router.get("/health", (req, res) => {
 });
 
 // Register the user routes with a valid path prefix
-router.use("/user", userRouter);  // ✅ This becomes: /api/v1/user/register, etc.
+router.use("/user", userRouter);
+router.use("/kyc", kycRouter);
+router.use("/transaction", transactionRouter);
 
 module.exports = router;
