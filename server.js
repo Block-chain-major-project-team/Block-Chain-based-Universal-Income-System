@@ -1,84 +1,86 @@
-const express         = require("express");
-const cors            = require("cors");
-const compression     = require("compression");
-const expressWinston  = require("express-winston");
+const express          = require("express");
+const path             = require("path");
+const fs               = require("fs");
+const cors             = require("cors");
+const compression      = require("compression");
+const expressWinston   = require("express-winston");
+const serveIndex       = require("serve-index");
 
-const model           = require("./models/index");
-const CONFIG          = require("./config/config");
-const v1              = require("./routes/v1");
-const logger          = require("./utils/logger.service");
+const model            = require("./models/index");
+const CONFIG           = require("./config/config");
+const v1               = require("./routes/v1");
+const logger           = require("./utils/logger.service");
 
 const app = express();
 
 // ────── GLOBAL MIDDLEWARE ────────────────────────────────────────────
-app.disable("x-powered-by"); 
-
-// Body parsing
+// JSON & URL-encoded body parsing
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-// Gzip compression
+// Enable Gzip compression
 app.use(compression());
 
-// CORS
+// Fully permissive CORS
 app.use(cors({
   origin: "*",
-  methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
+  methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
   allowedHeaders: "*",
+  preflightContinue: false,
   optionsSuccessStatus: 204
 }));
-app.options("*", cors());
 
-// ────── LOGGING (before routes) ──────────────────────────────────────
+// ────── REQUEST LOGGING (skip healthz) ──────────────────────────────
 app.use(
   expressWinston.logger({
     winstonInstance: logger,
     expressFormat: true,
+    colorize: false,
     ignoreRoute: req => req.path === "/api/healthz"
   })
 );
 
-// ────── API ROUTES ───────────────────────────────────────────────────
-app.use("/api/v1", v1);
-
-// ────── HEALTH CHECK ─────────────────────────────────────────────────
+// ────── HEALTH CHECK ────────────────────────────────────────────────
 app.get("/api/healthz", async (req, res) => {
   try {
-    const result = await model.sequelize.query("SELECT 1+1 AS result", {
-      type: model.sequelize.QueryTypes.SELECT
-    });
-
+    const result = await model.sequelize.query(
+      "SELECT 1+1 AS result",
+      { type: model.sequelize.QueryTypes.SELECT }
+    );
     return result[0].result === 2
       ? res.status(200).send("OK")
       : res.status(500).send("Database Error");
-  } catch (error) {
-    logger.error("Health check failed", error);
+  } catch {
     return res.status(500).send("Database Error");
   }
 });
 
-// ────── ERROR LOGGER ─────────────────────────────────────────────────
+// ────── API ROUTES ───────────────────────────────────────────────────
+app.use("/api/v1", v1);
+
+// ────── 404 HANDLER ─────────────────────────────────────────────────
+app.use((req, res) => {
+  res.status(404).send("Not Found");
+});
+
+// ────── ERROR LOGGING ───────────────────────────────────────────────
 app.use(
   expressWinston.errorLogger({
     winstonInstance: logger,
-    expressFormat: true
+    expressFormat: true,
+    colorize: false
   })
 );
 
-// ────── DATABASE SYNC ────────────────────────────────────────────────
+// ────── DATABASE SYNC ───────────────────────────────────────────────
 model.sequelize
-  .authenticate()
-  .then(() => logger.info("sequelize: Database Connection Success"))
-  .then(() => model.sequelize.sync())
+  .sync()
   .then(() => logger.info("sequelize: Database Sync Success"))
-  .catch(err => {
-    logger.error("sequelize: Database Init Failed", err);
-    process.exit(1); // Exit on fatal DB error
-  });
+  .catch(err => logger.error("sequelize: Database Sync Failed", err));
 
 // ────── START SERVER ────────────────────────────────────────────────
-app.listen(CONFIG.port, () =>
-  logger.info(`express: Listening on port ${CONFIG.port}`)
-);
+app.listen(CONFIG.port, () => {
+  logger.info(`express: Listening on port ${CONFIG.port}`);
+});
 
 module.exports = app;
