@@ -4,19 +4,17 @@ const CONFIG = require("../config/config");
 const transporter = nodemailer.createTransport({
   host: CONFIG.mailHost,
   port: CONFIG.mailPort,
-  secure: CONFIG.mailSecure, // true for 465, false for 587
+  secure: CONFIG.mailSecure,
   auth: {
     user: CONFIG.mailUser,
     pass: CONFIG.mailPassword
-  },
-  logger: true,        
-  debug: true           
+  }
 });
 
 // Generic mail sender
 const sendMail = async (to, subject, html) => {
   const mailOptions = {
-    from: CONFIG.mailUser,
+    from: `"BLOCKCHAINUBI TEAM" <${CONFIG.mailUser}>`, // 👈 Custom sender name
     to,
     subject,
     html
@@ -24,9 +22,10 @@ const sendMail = async (to, subject, html) => {
 
   try {
     const info = await transporter.sendMail(mailOptions);
+    console.log("Mail sent: ", info.response);
     return { success: true, info };
   } catch (error) {
-    console.error(" GoDaddy Mail Error:", error);
+    console.error("Mail error:", error);
     return { success: false, error };
   }
 };
