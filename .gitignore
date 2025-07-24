@@ -22,7 +22,7 @@ build/
 
 # ────── Environment Variables ─────────────
 .env
-.example.env
+example.env
 .env.local
 .env.*.local
 
