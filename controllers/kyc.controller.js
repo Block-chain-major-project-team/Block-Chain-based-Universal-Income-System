@@ -1,0 +1,123 @@
+
+"use strict";
+const model = require("../models/index");
+const { ReE, ReS } = require("../utils/util.service.js");
+const { Op } = require("sequelize");
+const verifyKycMock = require("../utils/verification.service.js");
+const { sendMail } = require("../middleware/mailer.middleware.js");
+
+
+
+// ✅ Create KYC entry and internally update status
+var create = async (req, res) => {
+    try {
+        const { userId, documentType } = req.body;
+
+        if (!userId || !documentType) return ReE(res, "Missing required fields", 400);
+        if (!req.file) return ReE(res, "No file uploaded", 400);
+
+        const user = await model.User.findByPk(userId);
+        if (!user || user.isDeleted) return ReE(res, "User not found", 404);
+
+        const filePath = req.file.path;
+
+        // Step 1: Create KYC with pending status
+        const kyc = await model.KYC.create({
+            userId,
+            documentType,
+            filePath,
+            status: "pending"
+        });
+
+        // Step 2: Update user's KYC status to pending
+        await user.update({ kyc_status: "pending" });
+
+        // Step 3: Simulate auto-verification (mock)
+        const autoStatus = verifyKycMock(req.file.filename); // "approved" or "rejected"
+
+        // Step 4: Update status
+        await kyc.update({ status: autoStatus });
+        await user.update({ kyc_status: autoStatus });
+
+        // Step 5: Send email to user
+        if (user.email) {
+            const subject = `Your KYC submission has been ${autoStatus}`;
+            const html = `
+                <p>Dear ${user.firstName || "User"},</p>
+                <p>We have received your KYC submission for <strong>${documentType.toUpperCase()}</strong>.</p>
+                <p>Status: <strong>${autoStatus.toUpperCase()}</strong></p>
+                <p>Thank you for using <strong>BLOCKCHAINUBI</strong>.</p>
+                <br/>
+                <p>Regards,</p>
+                <p><strong>BLOCKCHAIN UBI TEAM</strong></p>
+            `;
+
+            await sendMail(user.email, subject, html);
+        }
+
+        return ReS(res, {
+            message: `KYC submitted and ${autoStatus}`,
+            data: kyc
+        }, 201);
+
+    } catch (err) {
+        return ReE(res, err.message, 500);
+    }
+};
+module.exports.create = create;
+
+// ✅ Get all KYC records
+var getAll = async (req, res) => {
+    try {
+        const kycList = await model.KYC.findAll({
+            include: [{ model: model.User, attributes: ["id", "email", "mobile", "wallet"] }]
+        });
+
+        return ReS(res, { success: true, data: kycList }, 200);
+    } catch (err) {
+        return ReE(res, err.message, 500);
+    }
+};
+module.exports.getAll = getAll;
+
+// ✅ Update KYC status manually
+var updateStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        if (!["pending", "approved", "rejected"].includes(status)) {
+            return ReE(res, "Invalid status value", 400);
+        }
+
+        const kyc = await model.KYC.findByPk(id, {
+            include: [{ model: model.User }]
+        });
+        if (!kyc) return ReE(res, "KYC record not found", 404);
+
+        await kyc.update({ status });
+
+        // Also update user.kyc_status
+        if (kyc.User) {
+            await kyc.User.update({ kyc_status: status });
+
+            // Optionally notify user
+            if (kyc.User.email) {
+                const subject = `Your KYC status was updated to ${status}`;
+                const html = `
+                    <p>Hello ${kyc.User.firstName || "User"},</p>
+                    <p>Your KYC verification status has been manually updated to <strong>${status.toUpperCase()}</strong>.</p>
+                    <br/>
+                    <p>Regards,<br/><strong>BLOCKCHAINUBI TEAM</strong></p>
+                `;
+
+                await sendMail(kyc.User.email, subject, html);
+            }
+        }
+
+        return ReS(res, { message: `KYC status updated to ${status}`, kyc }, 200);
+    } catch (err) {
+        return ReE(res, err.message, 500);
+    }
+};
+module.exports.updateStatus = updateStatus;
