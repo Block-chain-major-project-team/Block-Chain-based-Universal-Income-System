@@ -8,5 +8,7 @@ router.get("/list", userController.fetchAll);
 router.get("/list/:id", userController.fetchSingle);
 router.put("/update/:id", userController.updateUser);
 router.delete("/delete/:id", userController.deleteUser);
+router.post("/link-did", userController.linkDidAndWallet);
+
 
 module.exports = router;
