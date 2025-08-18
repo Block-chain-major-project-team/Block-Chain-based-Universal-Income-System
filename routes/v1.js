@@ -5,6 +5,8 @@ const router = express.Router();
 const userRouter = require("./user.route");
 const kycRouter = require("./kyc.route");
 const transactionRouter = require("./transaction.route");
+const publicRouter = require("./public.route");
+const policyRouter = require("./policy.route")
 
 
 // Health Check Route
@@ -16,5 +18,7 @@ router.get("/health", (req, res) => {
 router.use("/user", userRouter);
 router.use("/kyc", kycRouter);
 router.use("/transaction", transactionRouter);
+router.use("/public", publicRouter);
+router.use("/policy", policyRouter);
 
 module.exports = router;
