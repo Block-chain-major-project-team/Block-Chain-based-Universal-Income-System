@@ -141,6 +141,7 @@ var deleteUser = async (req, res) => {
 };
 module.exports.deleteUser = deleteUser;
 
+
 var linkDidAndWallet = async (req, res) => {
   try {
     const { userId, wallet, did } = req.body;
@@ -152,20 +153,49 @@ var linkDidAndWallet = async (req, res) => {
     const user = await model.User.findByPk(userId);
     if (!user || user.isDeleted) return ReE(res, "User not found", 404);
 
+    // KYC must be approved first
     if (user.kyc_status !== "approved") {
       return ReE(res, "KYC not approved. Cannot link DID or wallet.", 403);
     }
 
-    // Check if wallet or DID is already used
+    // Enforce wallet verification via Wallet model record
+    const walletRecord = await model.Wallet.findOne({
+      where: { userId: user.id, isDeleted: false },
+    });
+
+    if (!walletRecord) {
+      return ReE(res, "No wallet found for this user. Please request verification code first.", 403);
+    }
+
+    // Wallet must be verified
+    if (!walletRecord.verified) {
+      return ReE(res, "Wallet not verified. Please complete wallet verification.", 403);
+    }
+
+    // The provided wallet must match the verified wallet on record
+    if (walletRecord.address.toLowerCase() !== wallet.toLowerCase()) {
+      return ReE(res, "Provided wallet does not match the verified wallet on file.", 400);
+    }
+
+    // ✅ DID checks: must match what is on user and be verified
+    if (!user.did || user.did.toLowerCase() !== did.toLowerCase()) {
+      return ReE(res, "Provided DID does not match the DID on file. Please request DID verification.", 400);
+    }
+
+    if (!user.did_verified) {
+      return ReE(res, "DID not verified. Please complete DID verification.", 403);
+    }
+
+    // Check if wallet or DID is already used by another user (User table uniqueness policy)
     const duplicate = await model.User.findOne({
       where: {
         [Op.or]: [{ wallet }, { did }],
         id: { [Op.ne]: userId }
       }
     });
-
     if (duplicate) return ReE(res, "DID or wallet already linked to another user", 409);
 
+    // All good: update user's wallet and DID (finalize linkage)
     await user.update({ wallet, did });
 
     return ReS(res, { message: "DID and wallet linked successfully", user });
@@ -176,3 +206,43 @@ var linkDidAndWallet = async (req, res) => {
 
 module.exports.linkDidAndWallet = linkDidAndWallet;
 
+var getEligibility = async (req, res) => {
+try {
+const { userId } = req.params;
+if (!userId) return ReE(res, "User ID is required", 400);
+const user = await model.User.findByPk(userId);
+if (!user || user.isDeleted) return ReE(res, "User not found", 404);
+
+if (user.kyc_status !== "approved") {
+  return ReS(res, { eligible: false, period: null, reason: "KYC not approved" }, 200);
+}
+
+if (user.isFlagged) {
+  return ReS(res, { eligible: false, period: null, reason: "Account frozen/flagged" }, 200);
+}
+
+const walletRecord = await model.Wallet.findOne({
+  where: { userId: user.id, isDeleted: false },
+});
+if (!walletRecord || !walletRecord.verified) {
+  return ReS(res, { eligible: false, period: null, reason: "Wallet not verified" }, 200);
+}
+
+if (!user.did_verified) {
+  return ReS(res, { eligible: false, period: null, reason: "DID not verified" }, 200);
+}
+
+const period = currentPeriodYYYYMM();
+const alreadyClaimed = await model.Transaction.findOne({
+  where: { userId: user.id, type: "ubi", period },
+});
+if (alreadyClaimed) {
+  return ReS(res, { eligible: false, period, reason: `Already claimed for ${period}` }, 200);
+}
+
+return ReS(res, { eligible: true, period, reason: "Eligible to claim" }, 200);
+} catch (err) {
+return ReE(res, err.message, 500);
+}
+};
+module.exports.getEligibility = getEligibility;
