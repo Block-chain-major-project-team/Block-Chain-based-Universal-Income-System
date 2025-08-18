@@ -9,6 +9,6 @@ router.get("/list/:id", userController.fetchSingle);
 router.put("/update/:id", userController.updateUser);
 router.delete("/delete/:id", userController.deleteUser);
 router.post("/link-did", userController.linkDidAndWallet);
-
+router.get("/eligibility/:userId", userController.getEligibility);
 
 module.exports = router;
