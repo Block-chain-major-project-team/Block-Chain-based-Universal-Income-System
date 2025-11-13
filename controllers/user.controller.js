@@ -5,6 +5,7 @@ const bcrypt = require("bcryptjs");
 const { Op } = require("sequelize");
 const { sendMail } = require("../middleware/mailer.middleware.js");
 
+
 // ✅ Register a new user
 var register = async (req, res) => {
     try {
@@ -13,22 +14,47 @@ var register = async (req, res) => {
         if (!wallet || !email || !mobile || !password)
             return ReE(res, "Missing required fields", 400);
 
-        const exists = await model.User.findOne({
+        // Check if a user exists (only active users)
+        let exists = await model.User.findOne({
             where: {
-                [Op.or]: [{ wallet }, { email }, { mobile }]
+                [Op.or]: [{ wallet }, { email }, { mobile }],
+                isDeleted: false
             }
         });
+
         if (exists) return ReE(res, "User already exists", 409);
+
+        // Optional: restore soft-deleted user
+        let deletedUser = await model.User.findOne({
+            where: {
+                [Op.or]: [{ wallet }, { email }, { mobile }],
+                isDeleted: true
+            }
+        });
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const user = await model.User.create({
-            wallet,
-            email,
-            mobile,
-            password: hashedPassword,
-            did
-        });
+        if (deletedUser) {
+            // Restore user
+            await deletedUser.update({
+                wallet,
+                email,
+                mobile,
+                password: hashedPassword,
+                did,
+                isDeleted: false
+            });
+            exists = deletedUser;
+        } else {
+            // Create new user
+            exists = await model.User.create({
+                wallet,
+                email,
+                mobile,
+                password: hashedPassword,
+                did
+            });
+        }
 
         // ✅ Send welcome email
         const subject = "Welcome to BlockchainUBI";
@@ -41,11 +67,11 @@ var register = async (req, res) => {
             <p><strong>BLOCKCHAINUBI TEAM</strong></p>
         `;
 
-        if (user.email) {
-            await sendMail(user.email, subject, html);
+        if (exists.email) {
+            await sendMail(exists.email, subject, html);
         }
 
-        return ReS(res, user, 201);
+        return ReS(res, exists, 201);
     } catch (err) {
         return ReE(res, err.message, 422);
     }
