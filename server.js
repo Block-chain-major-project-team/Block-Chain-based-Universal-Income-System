@@ -13,6 +13,9 @@ const logger           = require("./utils/logger.service");
 
 const app = express();
 
+require("./jobs/dailytransfer.job");
+
+
 // ────── GLOBAL MIDDLEWARE ────────────────────────────────────────────
 // JSON & URL-encoded body parsing
 app.use(express.json({ limit: "50mb" }));
