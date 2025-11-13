@@ -6,7 +6,10 @@ const userRouter = require("./user.route");
 const kycRouter = require("./kyc.route");
 const transactionRouter = require("./transaction.route");
 const publicRouter = require("./public.route");
-const policyRouter = require("./policy.route")
+const policyRouter = require("./policy.route");
+const didRouter= require("./did.route");
+const adminRouter = require("./admin.route");
+
 
 
 // Health Check Route
@@ -20,5 +23,7 @@ router.use("/kyc", kycRouter);
 router.use("/transaction", transactionRouter);
 router.use("/public", publicRouter);
 router.use("/policy", policyRouter);
+router.use("/did", didRouter);
+router.use("/admin", adminRouter);
 
-module.exports = router;
+module.exports = router; 
