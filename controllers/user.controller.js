@@ -9,7 +9,7 @@ const { sendMail } = require("../middleware/mailer.middleware.js");
 // ✅ Register a new user
 var register = async (req, res) => {
     try {
-        const { wallet, email, mobile, password, did } = req.body;
+        const { wallet, name ,email, mobile, password, did } = req.body;
 
         if (!wallet || !email || !mobile || !password)
             return ReE(res, "Missing required fields", 400);
@@ -39,6 +39,7 @@ var register = async (req, res) => {
             await deletedUser.update({
                 wallet,
                 email,
+                name,
                 mobile,
                 password: hashedPassword,
                 did,
@@ -51,6 +52,7 @@ var register = async (req, res) => {
                 wallet,
                 email,
                 mobile,
+                name,
                 password: hashedPassword,
                 did
             });
