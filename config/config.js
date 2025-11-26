@@ -41,6 +41,6 @@ CONFIG.s3Region = process.env.S3_REGION || 'ap-south-1';
 CONFIG.s3AccessKeyId = process.env.S3_ACCESS_KEY_ID || 'your-access-key-id';
 CONFIG.s3SecretAccessKey = process.env.S3_SECRET_ACCESS_KEY || 'your-secret-access-key';
 CONFIG.s3Bucket = process.env.S3_BUCKET || 'your-bucket-name';
-m
+
 
 module.exports = CONFIG;
