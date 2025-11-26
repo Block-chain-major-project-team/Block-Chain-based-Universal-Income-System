@@ -1,36 +1,43 @@
 "use strict";
 
-const CONFIG = require("../config/config");
-const logger = require("../utils/logger.service");
-
 const fs = require("fs");
 const path = require("path");
 const Sequelize = require("sequelize");
 const basename = path.basename(__filename);
 const db = {};
 
-const sequelizeOptions = {
-  host: CONFIG.db_host,
-  port: CONFIG.db_port,
-  dialect: CONFIG.db_dialect || "postgres",
-  pool: {
-    max: 20,
-    min: 0,
-    acquire: 30000,
-    idle: 10000,
-  },
-  logging: msg => logger.debug(msg),
-};
+const CONFIG = require("../config/config");
+const logger = require("../utils/logger.service");
 
-// ✅ Always pass string or null based on boolean flag
-const dbPassword = CONFIG.db_usePassword ? String(CONFIG.db_password || "") : null;
-
-const sequelize = new Sequelize(
-  CONFIG.db_name,
-  CONFIG.db_user,
-  dbPassword,
-  sequelizeOptions
-);
+// Use DATABASE_URL if available (Render internal URL), otherwise fall back to old config
+const sequelize = CONFIG.db.url
+  ? new Sequelize(CONFIG.db.url, {
+      dialect: "postgres",
+      pool: {
+        max: 20,
+        min: 0,
+        acquire: 30000,
+        idle: 10000,
+      },
+      logging: msg => logger.debug(msg),
+    })
+  : new Sequelize(
+      CONFIG.db_name,
+      CONFIG.db_user,
+      CONFIG.db_usePassword ? String(CONFIG.db_password || "") : null,
+      {
+        host: CONFIG.db_host,
+        port: CONFIG.db_port,
+        dialect: CONFIG.db_dialect || "postgres",
+        pool: {
+          max: 20,
+          min: 0,
+          acquire: 30000,
+          idle: 10000,
+        },
+        logging: msg => logger.debug(msg),
+      }
+    );
 
 // Load all models in this folder
 fs.readdirSync(__dirname)
