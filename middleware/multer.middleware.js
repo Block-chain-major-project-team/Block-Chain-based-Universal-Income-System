@@ -5,18 +5,18 @@ const CONFIG = require("../config/config");
 
 // ✅ Initialize S3 Client
 const s3Client = new S3Client({
-  region: "ap-south-1",
+  region: CONFIG.s3Region || "ap-south-1",
   credentials: {
     accessKeyId: CONFIG.s3AccessKeyId,
     secretAccessKey: CONFIG.s3SecretAccessKey,
   },
 });
 
-// 🔹 Common S3 Storage Builder
+// 🔹 S3 Storage Builder for KYC files
 const buildS3Storage = (pathPrefix) =>
   multerS3({
     s3: s3Client,
-    bucket: CONFIG.s3Bucket, // should be: eduroom-registration-details
+    bucket: CONFIG.s3Bucket, // "eduroom-registration-details"
     contentType: multerS3.AUTO_CONTENT_TYPE,
     key: (req, file, cb) => {
       const fileName = `${Date.now()}-${file.originalname}`;
@@ -24,62 +24,21 @@ const buildS3Storage = (pathPrefix) =>
     },
   });
 
-// ✅ File type filter for images only
+// ✅ Accept only images
 const imageFileFilter = (req, file, cb) => {
   const allowedTypes = /jpeg|jpg|png/;
   const ext = file.originalname.toLowerCase().match(/\.(jpeg|jpg|png)$/);
   const mime = allowedTypes.test(file.mimetype);
 
-  if (ext && mime) {
-    cb(null, true); // accept file
-  } else {
-    cb(new Error("Only PNG, JPEG, JPG files are allowed"));
-  }
+  if (ext && mime) cb(null, true);
+  else cb(new Error("Only PNG, JPEG, JPG files are allowed"));
 };
 
-/* ============================================================
-    EXISTING UPLOADERS (unchanged)
-============================================================ */
-
-// ✅ Profile Picture Upload (to eduroom-registration-details/profile)
-const uploadProfilePicture = multer({
-  storage: buildS3Storage("eduroom-registration-details/profile"),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+// ✅ KYC Upload Middleware
+const uploadKYCFile = multer({
+  storage: buildS3Storage("registration-details"),
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
   fileFilter: imageFileFilter,
 });
 
-// ✅ General Domain Images Upload (to eduroom-registration-details/domain-images)
-const uploadGeneralFile = multer({
-  storage: buildS3Storage("eduroom-registration-details/domain-images"),
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
-  fileFilter: imageFileFilter,
-});
-
-// ✅ General Course Images Upload (to eduroom-registration-details/course-images)
-const uploadGeneralFile2 = multer({
-  storage: buildS3Storage("eduroom-registration-details/course-images"),
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
-  fileFilter: imageFileFilter,
-});
-
-/* ============================================================
-    ✨ NEW UPLOADER — REGISTRATION DETAILS IMAGES
-============================================================ */
-
-// Example path: eduroom-registration-details/registration-details
-const uploadRegistrationDetails = multer({
-  storage: buildS3Storage("eduroom-registration-details/registration-details"),
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB (adjust if needed)
-  fileFilter: imageFileFilter,
-});
-
-/* ============================================================
-    EXPORT ALL
-============================================================ */
-
-module.exports = {
-  uploadProfilePicture,
-  uploadGeneralFile,
-  uploadGeneralFile2,
-  uploadRegistrationDetails,   // ✅ NEW EXPORT
-};
+module.exports = { uploadKYCFile };

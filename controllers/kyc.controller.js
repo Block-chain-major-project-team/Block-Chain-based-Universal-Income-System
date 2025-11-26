@@ -7,9 +7,8 @@ const verifyKycMock = require("../utils/verification.service.js");
 const { sendMail } = require("../middleware/mailer.middleware.js");
 
 
-
-// ✅ Create KYC entry and internally update status
-var create = async (req, res) => {
+// ✅ Create KYC entry and update status
+const create = async (req, res) => {
     console.log("🔵 [KYC] Controller reached - /create");
 
     try {
@@ -36,10 +35,11 @@ var create = async (req, res) => {
             return ReE(res, "User not found", 404);
         }
 
-        const filePath = req.file.path;
-        console.log("📂 File saved at:", filePath);
+        // ✅ FIX: Use S3 location instead of local path
+        const filePath = req.file.location;
+        console.log("📂 File uploaded to S3:", filePath);
 
-        // Step 1: Create KYC
+        // Step 1: Create KYC record
         console.log("📝 Creating KYC entry...");
         const kyc = await model.KYC.create({
             userId,
@@ -48,25 +48,23 @@ var create = async (req, res) => {
             status: "pending"
         });
 
-        console.log("✅ KYC created:", kyc.id);
+        console.log("✅ KYC created with ID:", kyc.id);
 
         // Step 2: Update user's KYC status
         console.log("🔄 Updating user kyc_status = pending...");
         await user.update({ kyc_status: "pending" });
 
-        // Step 3: Auto-verification
+        // Step 3: Auto-verification (mock)
         console.log("🤖 Running auto-verification mock...");
-        const autoStatus = verifyKycMock(req.file.filename);
+        const autoStatus = verifyKycMock(req.file.key); // use key or filename
         console.log("⚡ Auto verification result:", autoStatus);
 
-        // Step 4: Update KYC status
-        console.log("🔄 Updating KYC record...");
+        // Step 4: Update KYC record and user status
         await kyc.update({ status: autoStatus });
-
-        console.log("🔄 Updating user status...");
         await user.update({ kyc_status: autoStatus });
+        console.log("🔄 KYC & User status updated to:", autoStatus);
 
-        // Step 5: Email
+        // Step 5: Send email to user
         if (user.email) {
             console.log("📧 Sending email to:", user.email);
 
@@ -89,7 +87,7 @@ var create = async (req, res) => {
             }
         }
 
-        console.log("✅ Final response sending...");
+        // ✅ Return final response
         return ReS(res, {
             message: `KYC submitted and ${autoStatus}`,
             data: kyc
@@ -102,6 +100,7 @@ var create = async (req, res) => {
 };
 
 module.exports.create = create;
+
 
 // ✅ Get all KYC records
 var getAll = async (req, res) => {
