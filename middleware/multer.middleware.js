@@ -1,47 +1,85 @@
 const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
+const multerS3 = require("multer-s3");
+const { S3Client } = require("@aws-sdk/client-s3");
+const CONFIG = require("../config/config");
 
-console.log("💡 MULTER MIDDLEWARE LOADED");
-
-// Ensure upload directory exists
-const uploadDir = path.join(__dirname, "../uploads/kyc");
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// Configure storage
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        console.log("📁 MULTER DESTINATION HIT");
-        cb(null, uploadDir);
-    },
-    filename: function (req, file, cb) {
-        const uniqueName = Date.now() + "-" + Math.round(Math.random() * 1e9);
-        const ext = path.extname(file.originalname);
-        console.log("📝 FILENAME GENERATED:", uniqueName + ext);
-        cb(null, uniqueName + ext);
-    }
+// ✅ Initialize S3 Client
+const s3Client = new S3Client({
+  region: CONFIG.s3Region,
+  credentials: {
+    accessKeyId: CONFIG.s3AccessKeyId,
+    secretAccessKey: CONFIG.s3SecretAccessKey,
+  },
 });
 
-// File filter logging
-const fileFilter = (req, file, cb) => {
-    console.log("📥 FILE RECEIVED IN MULTER =>", {
-        fieldname: file.fieldname,
-        originalname: file.originalname,
-        mimetype: file.mimetype
-    });
+// 🔹 Common S3 Storage Builder
+const buildS3Storage = (pathPrefix) =>
+  multerS3({
+    s3: s3Client,
+    bucket: CONFIG.s3Bucket, // should be: eduroom-registration-details
+    contentType: multerS3.AUTO_CONTENT_TYPE,
+    key: (req, file, cb) => {
+      const fileName = `${Date.now()}-${file.originalname}`;
+      cb(null, `${pathPrefix}/${fileName}`);
+    },
+  });
 
-    const allowedTypes = ["image/jpeg", "image/png", "application/pdf", "application/octet-stream"];
+// ✅ File type filter for images only
+const imageFileFilter = (req, file, cb) => {
+  const allowedTypes = /jpeg|jpg|png/;
+  const ext = file.originalname.toLowerCase().match(/\.(jpeg|jpg|png)$/);
+  const mime = allowedTypes.test(file.mimetype);
 
-    if (allowedTypes.includes(file.mimetype)) {
-        cb(null, true);
-    } else {
-        console.log("❌ FILE BLOCKED BY FILTER", file.mimetype);
-        cb(new Error("Only JPEG, PNG, or PDF files are allowed"), false);
-    }
+  if (ext && mime) {
+    cb(null, true); // accept file
+  } else {
+    cb(new Error("Only PNG, JPEG, JPG files are allowed"));
+  }
 };
 
-const upload = multer({ storage, fileFilter });
+/* ============================================================
+    EXISTING UPLOADERS (unchanged)
+============================================================ */
 
-module.exports = upload;
+// ✅ Profile Picture Upload (to eduroom-registration-details/profile)
+const uploadProfilePicture = multer({
+  storage: buildS3Storage("eduroom-registration-details/profile"),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: imageFileFilter,
+});
+
+// ✅ General Domain Images Upload (to eduroom-registration-details/domain-images)
+const uploadGeneralFile = multer({
+  storage: buildS3Storage("eduroom-registration-details/domain-images"),
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+  fileFilter: imageFileFilter,
+});
+
+// ✅ General Course Images Upload (to eduroom-registration-details/course-images)
+const uploadGeneralFile2 = multer({
+  storage: buildS3Storage("eduroom-registration-details/course-images"),
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+  fileFilter: imageFileFilter,
+});
+
+/* ============================================================
+    ✨ NEW UPLOADER — REGISTRATION DETAILS IMAGES
+============================================================ */
+
+// Example path: eduroom-registration-details/registration-details
+const uploadRegistrationDetails = multer({
+  storage: buildS3Storage("eduroom-registration-details/registration-details"),
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB (adjust if needed)
+  fileFilter: imageFileFilter,
+});
+
+/* ============================================================
+    EXPORT ALL
+============================================================ */
+
+module.exports = {
+  uploadProfilePicture,
+  uploadGeneralFile,
+  uploadGeneralFile2,
+  uploadRegistrationDetails,   // ✅ NEW EXPORT
+};
