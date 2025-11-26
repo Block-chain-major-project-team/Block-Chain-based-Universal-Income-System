@@ -5,7 +5,7 @@ const CONFIG = require("../config/config");
 
 // ✅ Initialize S3 Client
 const s3Client = new S3Client({
-  region: CONFIG.s3Region,
+  region: "ap-south-1",
   credentials: {
     accessKeyId: CONFIG.s3AccessKeyId,
     secretAccessKey: CONFIG.s3SecretAccessKey,
