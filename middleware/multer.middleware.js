@@ -22,7 +22,7 @@ const storage = multer.diskStorage({
 
 const fileFilter = (req, file, cb) => {
     // Accept images and PDFs
-    const allowedTypes = ["image/jpeg", "image/png", "application/pdf"];
+    const allowedTypes = ["image/jpeg", "image/png", "application/pdf",  "application/octet-stream" ];
     if (allowedTypes.includes(file.mimetype)) {
         cb(null, true);
     } else {

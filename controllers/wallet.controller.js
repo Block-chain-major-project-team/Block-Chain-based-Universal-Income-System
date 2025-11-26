@@ -70,12 +70,13 @@ const requestCode = async (req, res) => {
   }
 };
 
+
 // POST /wallet/verify
 const verify = async (req, res) => {
   try {
-    const { userId, wallet, code } = req.body;
-    if (!userId || !wallet || !code) {
-      return ReE(res, "Missing userId, wallet, or code", 400);
+    const { userId, code } = req.body;
+    if (!userId || !code) {
+      return ReE(res, "Missing userId or code", 400);
     }
 
     const user = await model.User.findByPk(userId);
@@ -85,10 +86,6 @@ const verify = async (req, res) => {
       where: { userId: userId, isDeleted: false },
     });
     if (!userWallet) return ReE(res, "No wallet pending verification", 404);
-
-    if (userWallet.address.toLowerCase() !== wallet.toLowerCase()) {
-      return ReE(res, "Wallet address mismatch", 400);
-    }
 
     if (!userWallet.verificationCode || !userWallet.verificationExpiresAt) {
       return ReE(res, "No active verification code. Please request a new one.", 400);
@@ -109,7 +106,11 @@ const verify = async (req, res) => {
     userWallet.verificationExpiresAt = null;
     await userWallet.save();
 
-    return ReS(res, { message: "Wallet verified successfully" }, 200);
+    return ReS(res, { 
+      message: "Wallet verified successfully", 
+      data: { walletAddress: userWallet.address } 
+    }, 200);
+
   } catch (err) {
     return ReE(res, err.message, 500);
   }

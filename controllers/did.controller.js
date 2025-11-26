@@ -16,24 +16,34 @@ function expiryFromNow(minutes = 10) {
   return d;
 }
 
+// Example function to generate a DID (simple placeholder; in production use DID method)
+function generateDID(userId) {
+  return `did:example:${userId}-${Date.now()}`;
+}
+
 // POST /did/request-code
 const requestDidCode = async (req, res) => {
   try {
-    const { userId, did } = req.body;
-    if (!userId || !did) return ReE(res, "Missing userId or DID", 400);
+    const { userId } = req.body;
+    if (!userId) return ReE(res, "Missing userId", 400);
 
     const user = await model.User.findByPk(userId);
     if (!user || user.isDeleted) return ReE(res, "User not found", 404);
 
-    // Enforce uniqueness of DID across users
+    // Generate a DID automatically
+    const did = generateDID(userId);
+
+    // Enforce uniqueness of DID across users (should rarely happen)
     const duplicate = await model.User.findOne({
       where: { did, id: { [Op.ne]: userId }, isDeleted: false },
     });
-    if (duplicate) return ReE(res, "DID already linked to another user", 409);
+    if (duplicate) return ReE(res, "Generated DID already exists. Try again.", 500);
 
+    // Generate verification code
     const code = generateNumericCode(6);
     const expiresAt = expiryFromNow(10);
 
+    // Update user with DID and code
     await user.update({
       did,
       did_verified: false,
@@ -41,11 +51,13 @@ const requestDidCode = async (req, res) => {
       did_verification_expires_at: expiresAt,
     });
 
+    // Send code via email
     if (user.email) {
       const subject = "DID Verification Code";
       const html = `
         <p>Dear ${user.firstName || "User"},</p>
-        <p>Your DID verification code is: <strong>${code}</strong></p>
+        <p>Your new DID is: <strong>${did}</strong></p>
+        <p>Your verification code is: <strong>${code}</strong></p>
         <p>This code will expire at ${expiresAt.toISOString()}.</p>
         <br/>
         <p>Regards,<br/><strong>BLOCKCHAINUBI TEAM</strong></p>
@@ -53,8 +65,10 @@ const requestDidCode = async (req, res) => {
       await sendMail(user.email, subject, html);
     }
 
-    // For simulation, return the code; in prod, omit it
-    return ReS(res, { message: "DID code generated", data: { code, expiresAt } }, 200);
+    return ReS(res, {
+      message: "DID generated and code sent",
+      data: { did, code, expiresAt },
+    }, 200);
   } catch (err) {
     return ReE(res, err.message, 500);
   }
@@ -63,17 +77,13 @@ const requestDidCode = async (req, res) => {
 // POST /did/verify
 const verifyDidCode = async (req, res) => {
   try {
-    const { userId, did, code } = req.body;
-    if (!userId || !did || !code) return ReE(res, "Missing userId, DID, or code", 400);
+    const { userId, code } = req.body;
+    if (!userId || !code) return ReE(res, "Missing userId or code", 400);
 
     const user = await model.User.findByPk(userId);
     if (!user || user.isDeleted) return ReE(res, "User not found", 404);
 
-    if (!user.did || user.did !== did) {
-      return ReE(res, "DID mismatch or not requested", 400);
-    }
-
-    if (!user.did_verification_code || !user.did_verification_expires_at) {
+    if (!user.did || !user.did_verification_code || !user.did_verification_expires_at) {
       return ReE(res, "No active DID verification code. Please request a new one.", 400);
     }
 
@@ -86,16 +96,18 @@ const verifyDidCode = async (req, res) => {
       return ReE(res, "Invalid DID verification code", 400);
     }
 
+    // Mark DID as verified
     await user.update({
       did_verified: true,
       did_verification_code: null,
       did_verification_expires_at: null,
     });
 
-    return ReS(res, { message: "DID verified successfully" }, 200);
+    return ReS(res, { message: "DID verified successfully", data: { did: user.did } }, 200);
   } catch (err) {
     return ReE(res, err.message, 500);
   }
 };
 
 module.exports = { requestDidCode, verifyDidCode };
+
