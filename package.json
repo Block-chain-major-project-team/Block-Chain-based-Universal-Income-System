@@ -23,6 +23,7 @@
     "ipfs-http-client": "^60.0.1",
     "multer": "^2.0.2",
     "multer-s3": "^3.0.1",
+    "node-cron": "^4.2.1",
     "nodemailer": "^7.0.3",
     "parse-error": "^0.2.0",
     "path": "^0.12.7",

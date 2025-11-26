@@ -1,49 +1,36 @@
 "use strict";
 
+const CONFIG = require("../config/config");
+const logger = require("../utils/logger.service");
+
 const fs = require("fs");
 const path = require("path");
 const Sequelize = require("sequelize");
 const basename = path.basename(__filename);
 const db = {};
-const logger = console; // replace with your logger.service if needed
 
-// Pool & logging options
 const sequelizeOptions = {
+  host: CONFIG.db_host,
+  port: CONFIG.db_port,
+  dialect: CONFIG.db_dialect || "postgres",
   pool: {
     max: 20,
     min: 0,
     acquire: 30000,
     idle: 10000,
   },
-  logging: msg => logger.debug ? logger.debug(msg) : console.log(msg),
+  logging: msg => logger.debug(msg),
 };
 
-// ✅ Determine DB connection
-const dbPassword = process.env.DB_USE_PASSWORD === "true" ? process.env.DB_PASSWORD : null;
+// ✅ Always pass string or null based on boolean flag
+const dbPassword = CONFIG.db_usePassword ? String(CONFIG.db_password || "") : null;
 
-const sequelize = process.env.DATABASE_URL
-  ? new Sequelize(process.env.DATABASE_URL, {
-      dialect: "postgres",
-      dialectOptions: {
-        ssl: {
-          rejectUnauthorized: false, // Required for Neon
-        },
-      },
-      pool: sequelizeOptions.pool,
-      logging: sequelizeOptions.logging,
-    })
-  : new Sequelize(
-      process.env.DB_NAME || "jaya",
-      process.env.DB_USER || "postgres",
-      dbPassword,
-      {
-        host: process.env.DB_HOST || "localhost",
-        port: process.env.DB_PORT || 5432,
-        dialect: process.env.DB_DIALECT || "postgres",
-        pool: sequelizeOptions.pool,
-        logging: sequelizeOptions.logging,
-      }
-    );
+const sequelize = new Sequelize(
+  CONFIG.db_name,
+  CONFIG.db_user,
+  dbPassword,
+  sequelizeOptions
+);
 
 // Load all models in this folder
 fs.readdirSync(__dirname)
