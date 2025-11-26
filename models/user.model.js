@@ -4,7 +4,8 @@ module.exports = (sequelize, Sequelize) => {
     "User",
     {
       id: { autoIncrement: true, primaryKey: true, type: Sequelize.BIGINT },
-
+    
+      name: { type: Sequelize.STRING, allowNull: false },
       // Consider allowNull: true so users can register before linking a wallet
       wallet: { type: Sequelize.STRING, allowNull: true, unique: true },
 

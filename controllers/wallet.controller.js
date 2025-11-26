@@ -19,19 +19,11 @@ function expiryFromNow(minutes = 10) {
 // POST /wallet/request-code
 const requestCode = async (req, res) => {
   try {
-    const { userId, wallet } = req.body;
-    if (!userId || !wallet) return ReE(res, "Missing userId or wallet", 400);
+    const { userId } = req.body;
+    if (!userId) return ReE(res, "Missing userId", 400);
 
     const user = await model.User.findByPk(userId);
     if (!user || user.isDeleted) return ReE(res, "User not found", 404);
-
-    // Ensure address not used by another user
-    const existingWallet = await model.Wallet.findOne({
-      where: { address: wallet, isDeleted: false },
-    });
-    if (existingWallet && existingWallet.userId !== Number(userId)) {
-      return ReE(res, "Wallet address already linked to another user", 409);
-    }
 
     // Find wallet for this user (if any)
     let userWallet = await model.Wallet.findOne({
@@ -42,26 +34,23 @@ const requestCode = async (req, res) => {
     const expiresAt = expiryFromNow(10);
 
     if (!userWallet) {
-      // Create new wallet record
+      // Create new wallet record with placeholder address
       userWallet = await model.Wallet.create({
         userId,
-        address: wallet.trim(),
+        address: `TEMP-${userId}-${Date.now()}`, // temporary placeholder
         verified: false,
         verificationCode: code,
         verificationExpiresAt: expiresAt,
       });
     } else {
-      // If address differs, decide policy (here we allow update)
-      if (userWallet.address.toLowerCase() !== wallet.toLowerCase()) {
-        userWallet.address = wallet.trim();
-      }
+      // Reset verification if wallet exists
       userWallet.verified = false;
       userWallet.verificationCode = code;
       userWallet.verificationExpiresAt = expiresAt;
       await userWallet.save();
     }
 
-    // Email the code (simulation; keep code in response for dev)
+    // Email the code
     if (user.email) {
       const subject = "Wallet Verification Code";
       const html = `
@@ -75,7 +64,7 @@ const requestCode = async (req, res) => {
     }
 
     // Return code for simulation/dev use
-    return ReS(res, { message: "Code generated", data: { code, expiresAt } }, 200);
+    return ReS(res, { message: "Wallet created and code generated", data: { code, expiresAt } }, 200);
   } catch (err) {
     return ReE(res, err.message, 500);
   }

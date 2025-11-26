@@ -11,13 +11,13 @@ var register = async (req, res) => {
     try {
         const { wallet, name ,email, mobile, password, did } = req.body;
 
-        if (!wallet || !email || !mobile || !password)
+        if (!name || !email || !mobile || !password)
             return ReE(res, "Missing required fields", 400);
 
         // Check if a user exists (only active users)
         let exists = await model.User.findOne({
             where: {
-                [Op.or]: [{ wallet }, { email }, { mobile }],
+                [Op.or]: [{ email }, { mobile }],
                 isDeleted: false
             }
         });
@@ -27,7 +27,7 @@ var register = async (req, res) => {
         // Optional: restore soft-deleted user
         let deletedUser = await model.User.findOne({
             where: {
-                [Op.or]: [{ wallet }, { email }, { mobile }],
+                [Op.or]: [{ email }, { mobile }],
                 isDeleted: true
             }
         });
