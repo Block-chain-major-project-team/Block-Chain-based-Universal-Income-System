@@ -1,31 +1,23 @@
 "use strict";
 
-const nodemailer = require("nodemailer");
+const sgMail = require("@sendgrid/mail");
 const CONFIG = require("../config/config");
 
-// Use SendGrid SMTP
-const transporter = nodemailer.createTransport({
-  host: CONFIG.mailHost,      // smtp.sendgrid.net
-  port: CONFIG.mailPort,      // 587 for TLS, 465 for SSL
-  secure: CONFIG.mailSecure,  // false for TLS (STARTTLS)
-  auth: {
-    user: CONFIG.mailUser,    // must be 'apikey'
-    pass: CONFIG.mailPassword // your SendGrid API key
-  }
-});
+// Set SendGrid API key
+sgMail.setApiKey(CONFIG.mailPassword); // your SendGrid API Key
 
 // Generic mail sender (function name unchanged)
 const sendMail = async (to, subject, html) => {
-  const mailOptions = {
-    from: `"BLOCKCHAINUBI TEAM" <${CONFIG.mailUser}>`, // your sender name
+  const msg = {
     to,
+    from: `"BLOCKCHAINUBI TEAM" <${CONFIG.mailUser}>`, // verified sender
     subject,
-    html
+    html,
   };
 
   try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log("Mail sent: ", info.response);
+    const info = await sgMail.send(msg);
+    console.log("Mail sent:", info);
     return { success: true, info };
   } catch (error) {
     console.error("Mail error:", error);
