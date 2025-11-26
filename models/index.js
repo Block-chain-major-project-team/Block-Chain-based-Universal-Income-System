@@ -9,10 +9,10 @@ const db = {};
 const CONFIG = require("../config/config");
 const logger = require("../utils/logger.service");
 
-// Use DATABASE_URL if available (Render internal URL), otherwise fall back to old config
+// Initialize Sequelize
 const sequelize = CONFIG.db.url
   ? new Sequelize(CONFIG.db.url, {
-      dialect: "postgres",
+      dialect: CONFIG.db.dialect,
       pool: {
         max: 20,
         min: 0,
@@ -22,13 +22,13 @@ const sequelize = CONFIG.db.url
       logging: msg => logger.debug(msg),
     })
   : new Sequelize(
-      CONFIG.db_name,
-      CONFIG.db_user,
-      CONFIG.db_usePassword ? String(CONFIG.db_password || "") : null,
+      CONFIG.db.name,
+      CONFIG.db.user,
+      CONFIG.db.usePassword ? String(CONFIG.db.password) : null,
       {
-        host: CONFIG.db_host,
-        port: CONFIG.db_port,
-        dialect: CONFIG.db_dialect || "postgres",
+        host: CONFIG.db.host,
+        port: CONFIG.db.port,
+        dialect: CONFIG.db.dialect,
         pool: {
           max: 20,
           min: 0,
@@ -41,13 +41,21 @@ const sequelize = CONFIG.db.url
 
 // Load all models in this folder
 fs.readdirSync(__dirname)
-  .filter(file => file.indexOf(".") !== 0 && file !== basename && file.endsWith(".js"))
+  .filter(
+    file =>
+      file.indexOf(".") !== 0 &&
+      file !== basename &&
+      file.endsWith(".js")
+  )
   .forEach(file => {
-    const model = require(path.join(__dirname, file))(sequelize, Sequelize.DataTypes);
+    const model = require(path.join(__dirname, file))(
+      sequelize,
+      Sequelize.DataTypes
+    );
     db[model.name] = model;
   });
 
-// Apply associations
+// Apply associations if any
 Object.keys(db).forEach(modelName => {
   if (db[modelName].associate) {
     db[modelName].associate(db);
