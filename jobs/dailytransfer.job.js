@@ -5,8 +5,9 @@ const model = require("../models/index");
 const { Op } = require("sequelize");
 
 // Cron job: runs every day at 04:30 AM
-cron.schedule("30 4 * * *", async () => {
+cron.schedule("20 17 * * *", async () => {
   console.log("⏰ Starting daily donation transfer job at 4:30 AM...");
+
 
   try {
     const today = new Date();
