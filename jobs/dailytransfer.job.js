@@ -1,20 +1,18 @@
-"use strict";
-
 const cron = require("node-cron");
 const model = require("../models/index");
 const { Op } = require("sequelize");
 
-// Cron job: runs every day at 04:30 AM
-cron.schedule("20 17 * * *", async () => {
-  console.log("⏰ Starting daily donation transfer job at 4:30 AM...");
+console.log("💡 dailytransfer.job loaded");
 
+// Runs every minute for testing
+cron.schedule("* * * * *", async () => {
+  console.log("⏰ Running donation transfer job (test)...");
 
   try {
     const today = new Date();
     const startOfDay = new Date(today.setHours(0, 0, 0, 0));
     const endOfDay = new Date(today.setHours(23, 59, 59, 999));
 
-    // 1️⃣ Fetch all donation splits scheduled for today and pending
     const splitsToProcess = await model.DonationSplit.findAll({
       where: {
         scheduledDate: { [Op.between]: [startOfDay, endOfDay] },
@@ -30,10 +28,8 @@ cron.schedule("20 17 * * *", async () => {
     });
 
     for (const split of splitsToProcess) {
-      // 2️⃣ Mark split as completed
       await split.update({ status: "completed" });
 
-      // 3️⃣ Create received amount entry
       await model.ReceivedAmount.create({
         donationSplitId: split.id,
         donationId: split.Donation.id,
@@ -48,8 +44,8 @@ cron.schedule("20 17 * * *", async () => {
       console.log(`✅ Donation split ${split.id} transferred successfully`);
     }
 
-    console.log("✅ Daily donation transfer job completed.");
+    console.log("✅ Test donation transfer job completed.");
   } catch (err) {
-    console.error("❌ Error in daily donation transfer cron job:", err.message);
+    console.error("❌ Error in donation transfer job:", err.message);
   }
 });
