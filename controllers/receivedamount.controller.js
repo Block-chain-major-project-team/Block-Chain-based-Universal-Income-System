@@ -18,12 +18,11 @@ var listReceivedAmounts = async (req, res) => {
           { donatorId: userId }, // donations made by this user
           { userId: userId },    // platform user who processed transfers
         ],
-        isDeleted: false,
       },
       include: [
         {
           model: model.DonationSplit,
-          attributes: ["id", "amount", "message", "scheduledDate", "status"],
+          attributes: ["id", "splitAmount", "message", "transferDate", "status"],
         },
         {
           model: model.Donation,
