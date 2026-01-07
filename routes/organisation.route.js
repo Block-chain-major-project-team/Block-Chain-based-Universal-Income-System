@@ -19,15 +19,15 @@ const upload = multer({ storage });
 
 // Routes
 // Add organization (with optional bank_passbook_pic)
-router.post("/add", upload.single("bank_passbook_pic"), organizationController.addOrganization);
+router.post("/add", upload.single("bank_passbook_pic"), organisationController.addOrganization);
 
 // Update organization (can also update bank_passbook_pic)
-router.put("/update/:id", upload.single("bank_passbook_pic"), organizationController.updateOrganization);
+router.put("/update/:id", upload.single("bank_passbook_pic"), organisationController.updateOrganization);
 
 // List organizations
-router.get("/list", organizationController.listOrganizations);
+router.get("/list", organisationController.listOrganizations);
 
 // Soft delete organization
-router.delete("/delete/:id", organizationController.deleteOrganization);
+router.delete("/delete/:id", organisationController.deleteOrganization);
 
 module.exports = router;
