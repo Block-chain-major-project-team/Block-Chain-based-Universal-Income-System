@@ -9,6 +9,7 @@ const publicRouter = require("./public.route");
 const policyRouter = require("./policy.route");
 const didRouter= require("./did.route");
 const adminRouter = require("./admin.route");
+const walletRouter = require("./wallet.route");
 
 
 
@@ -25,5 +26,6 @@ router.use("/public", publicRouter);
 router.use("/policy", policyRouter);
 router.use("/did", didRouter);
 router.use("/admin", adminRouter);
+router.use("/wallet", walletRouter);
 
 module.exports = router; 
