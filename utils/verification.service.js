@@ -5,7 +5,7 @@ const verifyKycMock = (filename) => {
 
     // Auto-approve if file includes "valid"
     if (name.includes("adhar") || name.includes("pan")) {
-        return "Approved";
+        return "approved";
     }
 
     // Auto-reject if file includes "fake" or "invalid"
