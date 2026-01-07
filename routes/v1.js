@@ -11,8 +11,8 @@ const didRouter= require("./did.route");
 const adminRouter = require("./admin.route");
 const walletRouter = require("./wallet.route");
 const organisationRouter = require("./organisation.route");
-// const donationRouter = require("./donation.route");
-// const donatorRouter = require("./donator.route");
+const donationRouter = require("./donation.route");
+const donatorRouter = require("./donator.route");
 
 
 // Health Check Route
@@ -30,7 +30,7 @@ router.use("/did", didRouter);
 router.use("/admin", adminRouter);
 router.use("/wallet", walletRouter);
 router.use("/organisation", organisationRouter);
-// router.use("/donation", donationRouter);
-// router.use("/donator", donatorRouter);
+router.use("/donation", donationRouter);
+router.use("/donator", donatorRouter);
 
 module.exports = router; 

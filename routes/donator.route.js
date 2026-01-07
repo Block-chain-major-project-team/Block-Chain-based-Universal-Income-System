@@ -23,7 +23,6 @@ router.get("/list", donatorController.listDonators);
 router.delete("/delete/:id", donatorController.deleteDonator);
 router.post("/login", donatorController.loginDonator);
 
-// If you want a simple logout endpoint
-router.post("/logout", donatorController.logoutDonator);
+
 
 module.exports = router;
