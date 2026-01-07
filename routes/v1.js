@@ -13,6 +13,7 @@ const walletRouter = require("./wallet.route");
 const organisationRouter = require("./organisation.route");
 const donationRouter = require("./donation.route");
 const donatorRouter = require("./donator.route");
+const receivedAmountRouter = require("./receivedamount.route");
 
  
 // Health Check Route
@@ -32,5 +33,6 @@ router.use("/wallet", walletRouter);
 router.use("/organisation", organisationRouter);
 router.use("/donation", donationRouter);
 router.use("/donator", donatorRouter);
+router.use("/receivedamount", receivedAmountRouter);
 
 module.exports = router; 
