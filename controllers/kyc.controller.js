@@ -7,100 +7,105 @@ const verifyKycMock = require("../utils/verification.service.js");
 const { sendMail } = require("../middleware/mailer.middleware.js");
 
 
+
+
 // ✅ Create KYC entry and update status
 const create = async (req, res) => {
-    console.log("🔵 [KYC] Controller reached - /create");
+  console.log("🔵 [KYC] Controller reached - /create");
 
-    try {
-        console.log("📥 Request Body:", req.body);
-        console.log("📎 Uploaded File:", req.file);
+  try {
+    console.log("📥 Request Body:", req.body);
+    console.log("📎 Uploaded File:", req.file);
 
-        const { userId, documentType } = req.body;
+    const { userId, documentType } = req.body;
 
-        if (!userId || !documentType) {
-            console.log("⛔ Missing required fields");
-            return ReE(res, "Missing required fields", 400);
-        }
-
-        if (!req.file) {
-            console.log("⛔ No file uploaded");
-            return ReE(res, "No file uploaded", 400);
-        }
-
-        console.log("🔍 Checking user:", userId);
-        const user = await model.User.findByPk(userId);
-
-        if (!user || user.isDeleted) {
-            console.log("⛔ User not found or deleted");
-            return ReE(res, "User not found", 404);
-        }
-
-        // ✅ FIX: Use S3 location instead of local path
-        const filePath = req.file.location;
-        console.log("📂 File uploaded to S3:", filePath);
-
-        // Step 1: Create KYC record
-        console.log("📝 Creating KYC entry...");
-        const kyc = await model.KYC.create({
-            userId,
-            documentType,
-            filePath,
-            status: "pending"
-        });
-
-        console.log("✅ KYC created with ID:", kyc.id);
-
-        // Step 2: Update user's KYC status
-        console.log("🔄 Updating user kyc_status = pending...");
-        await user.update({ kyc_status: "pending" });
-
-        // Step 3: Auto-verification (mock)
-        console.log("🤖 Running auto-verification mock...");
-        const autoStatus = verifyKycMock(req.file.key); // use key or filename
-        console.log("⚡ Auto verification result:", autoStatus);
-
-        // Step 4: Update KYC record and user status
-        await kyc.update({ status: autoStatus });
-        await user.update({ kyc_status: autoStatus });
-        console.log("🔄 KYC & User status updated to:", autoStatus);
-
-        // Step 5: Send email to user
-        if (user.email) {
-            console.log("📧 Sending email to:", user.email);
-
-            const subject = `Your KYC submission has been ${autoStatus}`;
-            const html = `
-                <p>Dear ${user.firstName || "User"},</p>
-                <p>We have received your KYC submission for <strong>${documentType.toUpperCase()}</strong>.</p>
-                <p>Status: <strong>${autoStatus.toUpperCase()}</strong></p>
-                <p>Thank you for using <strong>BLOCKCHAINUBI</strong>.</p>
-                <br/>
-                <p>Regards,</p>
-                <p><strong>BLOCKCHAIN UBI TEAM</strong></p>
-            `;
-
-            try {
-                await sendMail(user.email, subject, html);
-                console.log("📨 Email sent successfully");
-            } catch (e) {
-                console.log("⚠️ Email sending failed:", e.message);
-            }
-        }
-
-        // ✅ Return final response
-        return ReS(res, {
-            message: `KYC submitted and ${autoStatus}`,
-            data: kyc
-        }, 201);
-
-    } catch (err) {
-        console.log("🔥 ERROR in KYC create:", err);
-        return ReE(res, err.message, 500);
+    // Step 0: Validate required fields
+    if (!userId || !documentType) {
+      console.log("⛔ Missing required fields: userId or documentType");
+      return ReE(res, "Missing required fields", 400);
     }
+
+    if (!req.file) {
+      console.log("⛔ No file uploaded. Multer did not detect the file");
+      return ReE(res, "No file uploaded", 400);
+    }
+
+    // Step 1: Fetch user
+    console.log(`🔍 Fetching user with ID: ${userId}`);
+    const user = await model.User.findByPk(userId);
+    if (!user || user.isDeleted) {
+      console.log("⛔ User not found or is deleted");
+      return ReE(res, "User not found", 404);
+    }
+    console.log(`✅ User found: ${user.email || user.mobile}`);
+
+    // Step 2: Store file path (S3 or local)
+    const filePath = req.file.location || req.file.path; // Use S3 location if exists
+    console.log("📂 File path stored for KYC:", filePath);
+
+    // Step 3: Create KYC entry
+    console.log("📝 Creating KYC entry...");
+    const kyc = await model.KYC.create({
+      userId,
+      documentType,
+      filePath,
+      status: "pending"
+    });
+    console.log(`✅ KYC entry created with ID: ${kyc.id}`);
+
+    // Step 4: Update user's KYC status to pending
+    console.log("🔄 Updating user's kyc_status = pending...");
+    await user.update({ kyc_status: "pending" });
+
+    // Step 5: Auto-verification (mock)
+    console.log("🤖 Running auto-verification mock...");
+    const autoStatus = verifyKycMock(req.file.key || req.file.filename); // Use key if S3
+    console.log("⚡ Auto verification result:", autoStatus);
+
+    // Step 6: Update KYC and user status based on auto verification
+    console.log(`🔄 Updating KYC and user status to ${autoStatus}...`);
+    await kyc.update({ status: autoStatus });
+    await user.update({ kyc_status: autoStatus });
+    console.log("✅ KYC and user status updated successfully");
+
+    // Step 7: Send email notification to user
+    if (user.email) {
+      console.log(`📧 Sending email to user: ${user.email}`);
+      const subject = `Your KYC submission has been ${autoStatus}`;
+      const html = `
+        <p>Dear ${user.firstName || "User"},</p>
+        <p>We have received your KYC submission for <strong>${documentType.toUpperCase()}</strong>.</p>
+        <p>Status: <strong>${autoStatus.toUpperCase()}</strong></p>
+        <p>Thank you for using <strong>BLOCKCHAINUBI</strong>.</p>
+        <br/>
+        <p>Regards,</p>
+        <p><strong>BLOCKCHAIN UBI TEAM</strong></p>
+      `;
+
+      try {
+        await sendMail(user.email, subject, html);
+        console.log("📨 Email sent successfully");
+      } catch (e) {
+        console.log("⚠️ Email sending failed:", e.message);
+      }
+    } else {
+      console.log("⚠️ User has no email, skipping email notification");
+    }
+
+    // Step 8: Send final response
+    console.log("📤 Sending API response...");
+    return ReS(res, {
+      message: `KYC submitted and ${autoStatus}`,
+      data: kyc
+    }, 201);
+
+  } catch (err) {
+    console.log("🔥 ERROR in KYC create:", err);
+    return ReE(res, err.message, 500);
+  }
 };
 
 module.exports.create = create;
-
 
 // ✅ Get all KYC records
 var getAll = async (req, res) => {
