@@ -115,16 +115,6 @@ const create = async (req, res) => {
   }
 };
 
-// Mock verification function (add this at the top of your file)
-const verifyKycMock = (filename) => {
-  // Simple mock: approve if filename contains certain keywords
-  // In real implementation, this would call an AI/ML service or manual review
-  const random = Math.random();
-  if (random > 0.7) return "approved";
-  if (random > 0.4) return "pending";
-  return "rejected";
-};
-
 module.exports.create = create;
 
 // ✅ Get all KYC records
