@@ -1,23 +1,28 @@
-"use strict";
-
-const sgMail = require("@sendgrid/mail");
+const nodemailer = require("nodemailer");
 const CONFIG = require("../config/config");
 
-// Set SendGrid API key
-sgMail.setApiKey(CONFIG.mailPassword); // your SendGrid API Key
+const transporter = nodemailer.createTransport({
+  host: CONFIG.mailHost,
+  port: CONFIG.mailPort,
+  secure: CONFIG.mailSecure,
+  auth: {
+    user: CONFIG.mailUser,
+    pass: CONFIG.mailPassword
+  }
+});
 
-// Generic mail sender (function name unchanged)
+// Generic mail sender
 const sendMail = async (to, subject, html) => {
-  const msg = {
+  const mailOptions = {
+    from: `"BLOCKCHAINUBI TEAM" <${CONFIG.mailUser}>`, // 👈 Custom sender name
     to,
-    from: `"BLOCKCHAINUBI TEAM" <${CONFIG.mailUser}>`, // verified sender
     subject,
-    html,
+    html
   };
 
   try {
-    const info = await sgMail.send(msg);
-    console.log("Mail sent:", info);
+    const info = await transporter.sendMail(mailOptions);
+    console.log("Mail sent: ", info.response);
     return { success: true, info };
   } catch (error) {
     console.error("Mail error:", error);
