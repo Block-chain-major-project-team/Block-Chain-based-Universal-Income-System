@@ -16,7 +16,10 @@ require("./jobs/dailytransfer.job"); // scheduled jobs
 
 // ────── GLOBAL MIDDLEWARE ──────
 app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
+// ✅ REMOVED: express.urlencoded to prevent interference with multipart/form-data
+// If you need it for specific routes, apply it conditionally
+
 app.use(compression());
 
 app.use(cors({

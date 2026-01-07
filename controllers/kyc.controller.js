@@ -17,7 +17,7 @@ const create = async (req, res) => {
   try {
     const { userId, documentType } = req.body;
 
-    // Check if file exists
+    // Validate file
     if (!req.file) {
       console.log("❌ No file uploaded");
       return res.status(400).json({
@@ -26,63 +26,69 @@ const create = async (req, res) => {
       });
     }
 
-    // Check required fields
+    // Validate required fields
     if (!userId || !documentType) {
       console.log("❌ Missing userId or documentType");
       return res.status(400).json({
         success: false,
-        error: "Missing required fields"
+        error: "Missing required fields: userId and documentType"
       });
     }
 
     // Find user
     const user = await model.User.findByPk(userId);
     if (!user || user.isDeleted) {
-      console.log("❌ User not found");
+      console.log("❌ User not found or deleted");
       return res.status(404).json({
         success: false,
         error: "User not found"
       });
     }
 
-    console.log("✅ User found:", user.email);
+    console.log("✅ User found:", user.email || user.mobile);
 
-    // Get file path
-    const filePath = req.file.path;
-    console.log("📂 File saved at:", filePath);
+    // Get S3 file info
+    const filePath = req.file.location; // S3 URL
+    const s3Key = req.file.key; // S3 object key
+    
+    console.log("📂 File uploaded to S3:", filePath);
+    console.log("🔑 S3 Key:", s3Key);
 
     // Create KYC entry
     const kyc = await model.KYC.create({
       userId,
       documentType,
       filePath,
+      s3Key,
       status: "pending"
     });
 
-    console.log("✅ KYC created with ID:", kyc.id);
+    console.log("✅ KYC entry created with ID:", kyc.id);
 
-    // Update user KYC status
+    // Update user KYC status to pending
     await user.update({ kyc_status: "pending" });
     console.log("✅ User kyc_status updated to: pending");
 
     // Auto-verification (mock)
     console.log("🤖 Running auto-verification mock...");
-    const autoStatus = verifyKycMock(req.file.filename);
+    const autoStatus = verifyKycMock(s3Key);
     console.log("⚡ Auto verification result:", autoStatus);
 
-    // Update KYC and user status based on auto verification
+    // Update KYC and user status based on verification
     await kyc.update({ status: autoStatus });
     await user.update({ kyc_status: autoStatus });
     console.log(`✅ KYC and user status updated to: ${autoStatus}`);
 
-    // Send email notification to user
+    // Send email notification
     if (user.email) {
-      console.log(`📧 Sending email to user: ${user.email}`);
+      console.log(`📧 Sending email to: ${user.email}`);
       const subject = `Your KYC submission has been ${autoStatus}`;
       const html = `
         <p>Dear ${user.firstName || "User"},</p>
         <p>We have received your KYC submission for <strong>${documentType.toUpperCase()}</strong>.</p>
         <p>Status: <strong>${autoStatus.toUpperCase()}</strong></p>
+        ${autoStatus === "approved" ? "<p>You can now access all features of the platform.</p>" : ""}
+        ${autoStatus === "rejected" ? "<p>Please contact support for more information.</p>" : ""}
         <p>Thank you for using <strong>BLOCKCHAINUBI</strong>.</p>
         <br/>
         <p>Regards,</p>
@@ -92,25 +98,33 @@ const create = async (req, res) => {
       try {
         await sendMail(user.email, subject, html);
         console.log("📨 Email sent successfully");
-      } catch (e) {
-        console.log("⚠️ Email sending failed:", e.message);
+      } catch (emailError) {
+        console.log("⚠️ Email sending failed:", emailError.message);
       }
     } else {
-      console.log("⚠️ User has no email, skipping email notification");
+      console.log("⚠️ User has no email, skipping notification");
     }
 
-    // Send response
+    // Return response
     return res.status(201).json({
       success: true,
       message: `KYC submitted and ${autoStatus}`,
-      data: kyc
+      data: {
+        id: kyc.id,
+        userId: kyc.userId,
+        documentType: kyc.documentType,
+        status: kyc.status,
+        fileUrl: filePath,
+        s3Key: s3Key,
+        createdAt: kyc.createdAt
+      }
     });
 
   } catch (err) {
-    console.log("🔥 ERROR:", err.message);
+    console.log("🔥 ERROR in KYC create:", err);
     return res.status(500).json({
       success: false,
-      error: err.message
+      error: err.message || "Internal server error"
     });
   }
 };

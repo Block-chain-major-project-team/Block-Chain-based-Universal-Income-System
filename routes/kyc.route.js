@@ -3,7 +3,7 @@ const router = express.Router();
 const kycController = require("../controllers/kyc.controller");
 const upload = require("../middleware/multer.middleware");
 
-// ✅ TEST ROUTE - Add this
+// Test upload route (optional, for debugging)
 router.post("/test-upload", upload.single("file"), (req, res) => {
   console.log("🧪 TEST ROUTE - Body:", req.body);
   console.log("🧪 TEST ROUTE - File:", req.file);
@@ -11,7 +11,7 @@ router.post("/test-upload", upload.single("file"), (req, res) => {
   if (req.file) {
     return res.json({
       success: true,
-      message: "File uploaded successfully!",
+      message: "File uploaded successfully to S3!",
       file: req.file
     });
   } else {
@@ -22,12 +22,8 @@ router.post("/test-upload", upload.single("file"), (req, res) => {
   }
 });
 
-// Your existing routes
-router.post("/create", 
-    upload.single("file"),
-    kycController.create
-);
-
+// Main KYC routes
+router.post("/create", upload.single("file"), kycController.create);
 router.get("/list", kycController.getAll);
 router.put("/update/:id", kycController.updateStatus);
 
