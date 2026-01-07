@@ -1,30 +1,24 @@
-const express          = require("express");
-const path             = require("path");
-const fs               = require("fs");
-const cors             = require("cors");
-const compression      = require("compression");
-const expressWinston   = require("express-winston");
-const serveIndex       = require("serve-index");
+const express        = require("express");
+const path           = require("path");
+const fs             = require("fs");
+const cors           = require("cors");
+const compression    = require("compression");
+const expressWinston = require("express-winston");
 
-const model            = require("./models/index");
-const CONFIG           = require("./config/config");
-const v1               = require("./routes/v1");
-const logger           = require("./utils/logger.service");
+const model  = require("./models/index");
+const CONFIG = require("./config/config");
+const v1     = require("./routes/v1");
+const logger = require("./utils/logger.service");
 
 const app = express();
 
-require("./jobs/dailytransfer.job");
+require("./jobs/dailytransfer.job"); // scheduled jobs
 
-
-// ────── GLOBAL MIDDLEWARE ────────────────────────────────────────────
-// JSON & URL-encoded body parsing
+// ────── GLOBAL MIDDLEWARE ──────
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
-
-// Enable Gzip compression
 app.use(compression());
 
-// Fully permissive CORS
 app.use(cors({
   origin: "*",
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
@@ -33,17 +27,20 @@ app.use(cors({
   optionsSuccessStatus: 204
 }));
 
-// ────── REQUEST LOGGING (skip healthz) ──────────────────────────────
-app.use(
-  expressWinston.logger({
-    winstonInstance: logger,
-    expressFormat: true,
-    colorize: false,
-    ignoreRoute: req => req.path === "/api/healthz"
-  })
-);
+// ────── REQUEST LOGGING (skip healthz) ──────
+app.use(expressWinston.logger({
+  winstonInstance: logger,
+  expressFormat: true,
+  colorize: false,
+  ignoreRoute: req => req.path === "/api/healthz"
+}));
 
-// ────── HEALTH CHECK ────────────────────────────────────────────────
+// ────── ROOT ROUTE (quick test) ──────
+app.get("/", (req, res) => {
+  res.send("Backend is running on EC2!");
+});
+
+// ────── HEALTH CHECK ──────
 app.get("/api/healthz", async (req, res) => {
   try {
     const result = await model.sequelize.query(
@@ -53,35 +50,34 @@ app.get("/api/healthz", async (req, res) => {
     return result[0].result === 2
       ? res.status(200).send("OK")
       : res.status(500).send("Database Error");
-  } catch {
+  } catch (err) {
+    logger.error("Health check DB error", err);
     return res.status(500).send("Database Error");
   }
 });
 
-// ────── API ROUTES ───────────────────────────────────────────────────
+// ────── API ROUTES ──────
 app.use("/api/v1", v1);
 
-// ────── 404 HANDLER ─────────────────────────────────────────────────
+// ────── 404 HANDLER ──────
 app.use((req, res) => {
   res.status(404).send("Not Found");
 });
 
-// ────── ERROR LOGGING ───────────────────────────────────────────────
-app.use(
-  expressWinston.errorLogger({
-    winstonInstance: logger,
-    expressFormat: true,
-    colorize: false
-  })
-);
+// ────── ERROR LOGGING ──────
+app.use(expressWinston.errorLogger({
+  winstonInstance: logger,
+  expressFormat: true,
+  colorize: false
+}));
 
-// ────── DATABASE SYNC ───────────────────────────────────────────────
+// ────── DATABASE SYNC ──────
 model.sequelize
   .sync()
   .then(() => logger.info("sequelize: Database Sync Success"))
   .catch(err => logger.error("sequelize: Database Sync Failed", err));
 
-// ────── START SERVER ────────────────────────────────────────────────
+// ────── START SERVER ──────
 app.listen(CONFIG.port, () => {
   logger.info(`express: Listening on port ${CONFIG.port}`);
 });
