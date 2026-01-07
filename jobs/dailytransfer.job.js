@@ -18,9 +18,8 @@ async function runDonationTransfer() {
     // 2️⃣ Fetch pending donation splits for today using transferDate
     const splitsToProcess = await model.DonationSplit.findAll({
       where: {
-        transferDate: { [Op.between]: [startOfDay, endOfDay] }, // <- fixed
+        transferDate: { [Op.between]: [startOfDay, endOfDay] },
         status: "pending",
-        // isDeleted is not in your model, remove it if unnecessary
       },
       include: [
         {
@@ -41,9 +40,9 @@ async function runDonationTransfer() {
       await model.ReceivedAmount.create({
         donationSplitId: split.id,
         donationId: split.Donation.id,
-        donatorId: split.userId,
+        donatorId: split.Donation.userId,      // <-- fixed
         organizationId: split.Donation.organizationId,
-        userId: split.userId,
+        userId: split.Donation.userId,         // <-- fixed
         receivedAmount: split.splitAmount,
         receivedDate: new Date(),
         remarks: "Transferred successfully by cron job",
