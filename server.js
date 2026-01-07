@@ -13,7 +13,7 @@ const logger = require("./utils/logger.service");
 const app = express();
 
 const { runDonationTransfer } = require("./jobs/dailytransfer.job");
-runDonationTransfer();
+runDonationTransfer(); 
 
 // ────── GLOBAL MIDDLEWARE ──────
 app.use(express.json({ limit: "50mb" }));
