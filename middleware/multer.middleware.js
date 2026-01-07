@@ -1,21 +1,34 @@
 const multer = require("multer");
 const multerS3 = require("multer-s3");
 const { S3Client } = require("@aws-sdk/client-s3");
-require("dotenv").config();
+const CONFIG = require("../config/config"); // ✅ Import config
 
 console.log("💡 S3 MULTER MIDDLEWARE LOADED");
 
+// Debug: Check if configuration is loaded
+console.log("🔍 AWS_REGION:", CONFIG.aws_region);
+console.log("🔍 AWS_ACCESS_KEY_ID:", CONFIG.aws_access_key_id ? "✅ Set" : "❌ Missing");
+console.log("🔍 AWS_SECRET_ACCESS_KEY:", CONFIG.aws_secret_access_key ? "✅ Set" : "❌ Missing");
+console.log("🔍 S3_BUCKET_NAME:", CONFIG.s3_bucket_name);
+
+// Validate required S3 configuration
+if (!CONFIG.aws_region || !CONFIG.aws_access_key_id || !CONFIG.aws_secret_access_key || !CONFIG.s3_bucket_name) {
+  console.error("❌ ERROR: Missing AWS S3 configuration in .env file!");
+  console.error("Required: AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, S3_BUCKET_NAME");
+  throw new Error("AWS S3 configuration is incomplete");
+}
+
 // Configure AWS S3 Client
 const s3 = new S3Client({
-  region: process.env.AWS_REGION,
+  region: CONFIG.aws_region,
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    accessKeyId: CONFIG.aws_access_key_id,
+    secretAccessKey: CONFIG.aws_secret_access_key,
   },
 });
 
-console.log("🔧 S3 Client configured for region:", process.env.AWS_REGION);
-console.log("📦 Target bucket:", process.env.S3_BUCKET_NAME);
+console.log("🔧 S3 Client configured for region:", CONFIG.aws_region);
+console.log("📦 Target bucket:", CONFIG.s3_bucket_name);
 
 // File filter with logging
 const fileFilter = (req, file, cb) => {
@@ -46,7 +59,7 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage: multerS3({
     s3: s3,
-    bucket: process.env.S3_BUCKET_NAME,
+    bucket: CONFIG.s3_bucket_name,
     acl: "private", // Change to "public-read" if you want files publicly accessible
     contentType: multerS3.AUTO_CONTENT_TYPE,
     metadata: function (req, file, cb) {
@@ -74,32 +87,4 @@ const upload = multer({
   },
 });
 
-// Error handling wrapper
-const uploadSingleWithErrorHandling = (fieldName) => {
-  return (req, res, next) => {
-    console.log("🚀 S3 Upload middleware executing for field:", fieldName);
-    
-    upload.single(fieldName)(req, res, (err) => {
-      if (err instanceof multer.MulterError) {
-        console.log("❌ Multer Error:", err.message);
-        return res.status(400).json({
-          success: false,
-          error: `Upload error: ${err.message}`
-        });
-      } else if (err) {
-        console.log("❌ Unknown Error:", err.message);
-        return res.status(400).json({
-          success: false,
-          error: err.message
-        });
-      }
-      
-      console.log("✅ S3 Upload successful");
-      console.log("📎 req.file:", req.file);
-      next();
-    });
-  };
-};
-
 module.exports = upload;
-module.exports.uploadSingle = uploadSingleWithErrorHandling;

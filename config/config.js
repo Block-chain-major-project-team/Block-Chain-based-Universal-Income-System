@@ -40,4 +40,10 @@ CONFIG.mailSecure   = process.env.MAIL_SECURE === "true";
 CONFIG.mailUser     = process.env.MAIL_USER || "";
 CONFIG.mailPassword = process.env.MAIL_PASSWORD || "";
 
+// AWS S3
+CONFIG.aws_region           = process.env.AWS_REGION || "ap-south-1";
+CONFIG.aws_access_key_id    = process.env.AWS_ACCESS_KEY_ID || "";
+CONFIG.aws_secret_access_key = process.env.AWS_SECRET_ACCESS_KEY || "";
+CONFIG.s3_bucket_name       = process.env.S3_BUCKET_NAME || "";
+
 module.exports = CONFIG;
