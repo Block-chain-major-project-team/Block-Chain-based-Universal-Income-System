@@ -3,6 +3,26 @@ const router = express.Router();
 const kycController = require("../controllers/kyc.controller");
 const upload = require("../middleware/multer.middleware");
 
+// ✅ TEST ROUTE - Add this
+router.post("/test-upload", upload.single("file"), (req, res) => {
+  console.log("🧪 TEST ROUTE - Body:", req.body);
+  console.log("🧪 TEST ROUTE - File:", req.file);
+  
+  if (req.file) {
+    return res.json({
+      success: true,
+      message: "File uploaded successfully!",
+      file: req.file
+    });
+  } else {
+    return res.status(400).json({
+      success: false,
+      message: "No file received"
+    });
+  }
+});
+
+// Your existing routes
 router.post("/create", 
     upload.single("file"),
     kycController.create
