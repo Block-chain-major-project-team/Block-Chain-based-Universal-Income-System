@@ -1,41 +1,53 @@
 "use strict";
 const model = require("../models/index");
 const { ReE, ReS } = require("../utils/util.service.js");
+const { Op } = require("sequelize");
 
 
 var createDonation = async (req, res) => {
   try {
     const {
-      organizationId,
+      organizationName, // users will provide name instead of id
       userId,
-      organizationName,
       totalAmount,
       contactPersonName,
       contactPersonEmail,
       splits,
     } = req.body;
 
-    if (!organizationId || !userId || !organizationName || !totalAmount || !splits || splits.length === 0) {
+    if (!organizationName || !userId || !totalAmount || !splits || splits.length === 0) {
       return ReE(res, "Missing required fields", 400);
     }
 
-    // Verify sum of splits equals totalAmount
+    // 1️⃣ Fetch organization by name (case-insensitive, partial match)
+    const organization = await model.Organization.findOne({
+      where: {
+        name: { [model.Sequelize.Op.iLike]: `%${organizationName.trim()}%` },
+        isDeleted: false,
+      },
+    });
+
+    if (!organization) {
+      return ReE(res, `Organization not found for name: "${organizationName}"`, 404);
+    }
+
+    // 2️⃣ Verify sum of splits equals totalAmount
     const sumSplits = splits.reduce((sum, s) => sum + parseFloat(s.splitAmount), 0);
     if (parseFloat(totalAmount) !== sumSplits) {
       return ReE(res, "Sum of splits does not match totalAmount", 400);
     }
 
-    // Create Donation
+    // 3️⃣ Create Donation using organizationId
     const donation = await model.Donation.create({
-      organizationId,
+      organizationId: organization.id,
       userId,
-      organizationName,
+      organizationName: organization.name,
       totalAmount,
       contactPersonName,
       contactPersonEmail,
     });
 
-    // Create DonationSplits
+    // 4️⃣ Create DonationSplits
     for (const s of splits) {
       await model.DonationSplit.create({
         donationId: donation.id,
@@ -46,12 +58,13 @@ var createDonation = async (req, res) => {
       });
     }
 
-    // Fetch the donation with splits
+    // 5️⃣ Fetch the donation with splits
     const result = await model.Donation.findByPk(donation.id, {
       include: [model.DonationSplit],
     });
 
     return ReS(res, { message: "Donation created successfully", data: result }, 201);
+
   } catch (err) {
     return ReE(res, err.message, 500);
   }
