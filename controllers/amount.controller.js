@@ -23,7 +23,7 @@ const listAmounts = async (req, res) => {
       include: [
         {
           model: model.DonationSplit,
-          attributes: ["id", "splitAmount", "message", "transferDate", "status"],
+          attributes: ["id", "splitAmount", "message", "transferDate", "purpose", "status"],
         },
         {
           model: model.Donation,

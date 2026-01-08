@@ -8,6 +8,7 @@ module.exports = (sequelize, Sequelize) => {
       donationId: { type: Sequelize.BIGINT, allowNull: false }, // FK to Donation
       splitAmount: { type: Sequelize.DECIMAL(18, 2), allowNull: false },
       message: { type: Sequelize.TEXT, allowNull: true },
+      purpose: { type: Sequelize.STRING, allowNull: true },
       transferDate: { type: Sequelize.DATE, allowNull: true },
       status: { 
         type: Sequelize.ENUM("pending", "completed", "failed"), 

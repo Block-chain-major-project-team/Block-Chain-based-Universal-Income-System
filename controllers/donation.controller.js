@@ -53,6 +53,7 @@ var createDonation = async (req, res) => {
         donationId: donation.id,
         splitAmount: s.splitAmount,
         message: s.message,
+        purpose: s.purpose,
         transferDate: s.transferDate,
         status: "pending",
       });
