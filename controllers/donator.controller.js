@@ -137,7 +137,7 @@ var listDonators = async (req, res) => {
 
     const donators = await model.Donator.findAll({
       where: whereClause,
-      include: [{ model: model.User, attributes: ["id", "firstName", "email"] }],
+      include: [{ model: model.User, attributes: ["id", "name", "email"] }],
       order: [["createdAt", "DESC"]],
     });
 
