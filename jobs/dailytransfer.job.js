@@ -15,7 +15,7 @@ async function runDonationTransfer() {
     const startOfDay = new Date(today.setHours(0, 0, 0, 0));
     const endOfDay = new Date(today.setHours(23, 59, 59, 999));
 
-    // 2️⃣ Fetch pending donation splits for today using transferDate
+    // 2️⃣ Fetch pending donation splits for today
     const splitsToProcess = await model.DonationSplit.findAll({
       where: {
         transferDate: { [Op.between]: [startOfDay, endOfDay] },
@@ -24,28 +24,38 @@ async function runDonationTransfer() {
       include: [
         {
           model: model.Donation,
-          attributes: ["id", "organizationId", "userId", "organizationName", "totalAmount"],
+          attributes: [
+            "id",
+            "organizationId",
+            "userId",
+            "organizationName",
+            "totalAmount",
+          ],
         },
       ],
     });
 
     if (splitsToProcess.length === 0) {
       console.log("ℹ️ No pending donation splits found for today.");
+      return;
     }
 
     // 3️⃣ Process each split
     for (const split of splitsToProcess) {
+      // mark split as completed
       await split.update({ status: "completed" });
 
-      await model.ReceivedAmount.create({
+      // create Amount entry
+      await model.Amount.create({
         donationSplitId: split.id,
         donationId: split.Donation.id,
-        donatorId: split.Donation.userId,      // <-- fixed
+        donatorId: split.Donation.userId,          // donor
         organizationId: split.Donation.organizationId,
-        userId: split.Donation.userId,         // <-- fixed
-        receivedAmount: split.splitAmount,
-        receivedDate: new Date(),
+        userId: split.Donation.userId,             // admin / platform user (adjust if different)
+        amount: split.splitAmount,
+        amountDate: new Date(),
         remarks: "Transferred successfully by cron job",
+        isDeleted: false,
       });
 
       console.log(`✅ Donation split ${split.id} transferred successfully`);
@@ -57,8 +67,8 @@ async function runDonationTransfer() {
   }
 }
 
-// 4️⃣ Schedule cron to run every 2 minutes for testing
+// 4️⃣ Schedule cron to run every 2 minutes (testing)
 cron.schedule("*/2 * * * *", runDonationTransfer);
 
-// 5️⃣ Export the function so it can be run manually if needed
+// 5️⃣ Export for manual trigger
 module.exports = { runDonationTransfer };
