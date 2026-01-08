@@ -4,22 +4,18 @@ const { ReE, ReS } = require("../utils/util.service.js");
 const { Op } = require("sequelize");
 
 
-var createDonation = async (req, res) => {
-  try {
-    const {
-      organizationName, // users will provide name instead of id
-      userId,
-      totalAmount,
-      contactPersonName,
-      contactPersonEmail,
-      splits,
-    } = req.body;
 
+
+const createDonation = async (req, res) => {
+  try {
+    const { organizationName, userId, totalAmount, contactPersonName, contactPersonEmail, splits } = req.body;
+
+    // 1️⃣ Validate required fields
     if (!organizationName || !userId || !totalAmount || !splits || splits.length === 0) {
       return ReE(res, "Missing required fields", 400);
     }
 
-    // 1️⃣ Fetch organization by name (case-insensitive, partial match)
+    // 2️⃣ Find organization by name (case-insensitive)
     const organization = await model.Organization.findOne({
       where: {
         name: { [model.Sequelize.Op.iLike]: `%${organizationName.trim()}%` },
@@ -31,13 +27,13 @@ var createDonation = async (req, res) => {
       return ReE(res, `Organization not found for name: "${organizationName}"`, 404);
     }
 
-    // 2️⃣ Verify sum of splits equals totalAmount
+    // 3️⃣ Verify sum of splits equals totalAmount
     const sumSplits = splits.reduce((sum, s) => sum + parseFloat(s.splitAmount), 0);
     if (parseFloat(totalAmount) !== sumSplits) {
       return ReE(res, "Sum of splits does not match totalAmount", 400);
     }
 
-    // 3️⃣ Create Donation using organizationId
+    // 4️⃣ Create Donation
     const donation = await model.Donation.create({
       organizationId: organization.id,
       userId,
@@ -47,26 +43,43 @@ var createDonation = async (req, res) => {
       contactPersonEmail,
     });
 
-    // 4️⃣ Create DonationSplits
-    for (const s of splits) {
-      await model.DonationSplit.create({
-        donationId: donation.id,
-        splitAmount: s.splitAmount,
-        message: s.message,
-        purpose: s.purpose,
-        transferDate: s.transferDate,
-        status: "pending",
-      });
-    }
+    // 5️⃣ Create DonationSplits
+    const donationSplitsData = splits.map((s) => ({
+      donationId: donation.id,
+      splitAmount: s.splitAmount,
+      message: s.message,
+      purpose: s.purpose || null, // ensure null if not provided
+      transferDate: s.transferDate,
+      status: "pending",
+    }));
 
-    // 5️⃣ Fetch the donation with splits
+    await model.DonationSplit.bulkCreate(donationSplitsData);
+
+    // 6️⃣ Fetch the donation with splits (purpose included explicitly)
     const result = await model.Donation.findByPk(donation.id, {
-      include: [model.DonationSplit],
+      include: [
+        {
+          model: model.DonationSplit,
+          attributes: [
+            "id",
+            "donationId",
+            "splitAmount",
+            "message",
+            "purpose",
+            "transferDate",
+            "status",
+            "createdAt",
+            "updatedAt",
+          ],
+        },
+      ],
     });
 
+    // 7️⃣ Return response
     return ReS(res, { message: "Donation created successfully", data: result }, 201);
 
   } catch (err) {
+    console.error(err);
     return ReE(res, err.message, 500);
   }
 };
