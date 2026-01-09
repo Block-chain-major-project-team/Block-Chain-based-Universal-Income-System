@@ -3,6 +3,7 @@
 const cron = require("node-cron");
 const model = require("../models/index");
 const { Op } = require("sequelize");
+const { sendMail } = require("../middleware/mailer.middleware.js");
 
 console.log("💡 dailytransfer.job file loaded");
 
@@ -59,7 +60,7 @@ function adjustAmount(originalAmount) {
 // -----------------------------
 // Main cron job function
 // -----------------------------
-const { sendMail } = require("../utils/mailer"); // your existing mailer
+
 
 async function runDonationTransfer() {
   console.log("⏰ Running donation transfer job at", new Date().toISOString());
