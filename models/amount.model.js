@@ -46,6 +46,11 @@ module.exports = (sequelize, Sequelize) => {
         defaultValue: Sequelize.NOW,
       },
 
+      reciept:{
+        type: Sequelize.STRING,
+        allowNull: true,
+      },
+
       remarks: {
         type: Sequelize.STRING,
         allowNull: true,

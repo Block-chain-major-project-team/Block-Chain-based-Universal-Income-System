@@ -15,6 +15,7 @@ const PURPOSE_SHOPS = {
   Clothes: ["Fashion Hub", "Snaa Garments", "Urban Wear", "Kids World"],
   Bricks: ["BuildMart", "Snaa Construction", "Rithik Traders", "Urban Bricks Co."],
   Benches: ["Urban Furniture", "Snaa Benches", "Rithik Benches", "Park Furniture Co."],
+  Benche: ["Urban Furniture", "Snaa Benches", "Rithik Benches", "Park Furniture Co."],
   Notebooks: ["PaperWorld", "Snaa Notebooks", "Rithik Stationeries", "BookPoint"],
   Shoes: ["StepUp Shoes", "Snaa Footwear", "Rithik Shoes", "Urban Steps"],
   Toys: ["FunLand Toys", "Snaa Toys", "Rithik Toys", "KidsPlay Store"],
@@ -108,7 +109,8 @@ async function runDonationTransfer() {
         userId: split.Donation.userId,
         amount: adjustedAmount,
         amountDate: new Date(),
-        remarks: message, // store the message here only
+        remarks: message,
+        reciept: message, // store the message here only
         isDeleted: false,
       });
 
