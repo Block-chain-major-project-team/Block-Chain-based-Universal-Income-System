@@ -59,6 +59,8 @@ function adjustAmount(originalAmount) {
 // -----------------------------
 // Main cron job function
 // -----------------------------
+const { sendMail } = require("../utils/mailer"); // your existing mailer
+
 async function runDonationTransfer() {
   console.log("⏰ Running donation transfer job at", new Date().toISOString());
 
@@ -76,6 +78,12 @@ async function runDonationTransfer() {
         {
           model: model.Donation,
           attributes: ["id", "organizationId", "userId", "organizationName", "totalAmount"],
+          include: [
+            {
+              model: model.Organization,
+              attributes: ["id", "name", "email", "contact_person_name"],
+            },
+          ],
         },
       ],
     });
@@ -85,23 +93,17 @@ async function runDonationTransfer() {
       return;
     }
 
-    // Process each split
     for (const split of splitsToProcess) {
       await split.update({ status: "completed" });
 
-      // Adjust amount
       const adjustedAmount = adjustAmount(split.splitAmount);
-
-      // Pick random shop for purpose
       const purpose = split.purpose || "General";
       const shops = PURPOSE_SHOPS[purpose] || ["Local Vendor"];
       const shopName = pickRandom(shops);
-
-      // Create message
       const message = `₹${adjustedAmount.toFixed(2)} sent to ${shopName} for ${purpose}`;
 
       // Save Amount record
-      await model.Amount.create({
+      const amountRecord = await model.Amount.create({
         donationSplitId: split.id,
         donationId: split.Donation.id,
         donatorId: split.Donation.userId,
@@ -110,11 +112,47 @@ async function runDonationTransfer() {
         amount: adjustedAmount,
         amountDate: new Date(),
         remarks: message,
-        reciept: message, // store the message here only
+        reciept: message,
         isDeleted: false,
       });
 
       console.log(`✅ ${message}`);
+
+      // -----------------------------
+      // Send HTML email to the organization
+      // -----------------------------
+      const org = split.Donation.Organization;
+      if (org && org.email) {
+        const subject = `Donation Received: ₹${adjustedAmount.toFixed(2)}`;
+        const html = `
+          <p>Dear ${org.contact_person_name || org.name},</p>
+          <p>We are pleased to inform you that your organization <strong>${org.name}</strong> has received a donation.</p>
+          <table style="border-collapse: collapse; width: 100%;">
+            <tr>
+              <td style="padding: 8px; border: 1px solid #ddd;">Amount Funded</td>
+              <td style="padding: 8px; border: 1px solid #ddd;">₹${adjustedAmount.toFixed(2)}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; border: 1px solid #ddd;">Purpose</td>
+              <td style="padding: 8px; border: 1px solid #ddd;">${purpose}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; border: 1px solid #ddd;">Shop/Vendor</td>
+              <td style="padding: 8px; border: 1px solid #ddd;">${shopName}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; border: 1px solid #ddd;">Remarks</td>
+              <td style="padding: 8px; border: 1px solid #ddd;">${message}</td>
+            </tr>
+          </table>
+          <br/>
+          <p>Thank you for your work and dedication!</p>
+          <p><strong>BlockchainUBI Team</strong></p>
+        `;
+
+        await sendMail(org.email, subject, html);
+        console.log(`✉️ HTML email sent to ${org.email}`);
+      }
     }
 
     console.log("✅ Donation transfer job completed.");
